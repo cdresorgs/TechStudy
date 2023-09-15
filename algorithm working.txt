@@ -1,0 +1,94 @@
+using System;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+
+// Define a class to represent a time slot
+public class TimeSlot
+{
+    public DateTime Start { get; set; }
+    public DateTime End { get; set; }
+}
+
+// Define a class to represent the availability response from Get User Availability API
+public class AvailabilityResponse
+{
+    [JsonProperty(PropertyName = "value")]
+    public List<Availability> Availabilities { get; set; }
+}
+
+public class Availability
+{
+    public string ScheduleId { get; set; }
+    public List<TimeSlot> TimeSlots { get; set; }
+}
+
+public class Program
+{
+    static void Main()
+    {
+        // Sample availability response from Get User Availability API
+        var availabilityResponse = JsonConvert.DeserializeObject<AvailabilityResponse>(@"
+        {
+            ""value"": [
+                {
+                    ""scheduleId"": ""123"",
+                    ""timeSlots"": [
+                         { ""start"": ""2023-07-26T10:30:00Z"", ""end"": ""2023-07-26T17:30:00Z"" }
+                    ]
+                },
+                {
+                    ""scheduleId"": ""456"",
+                    ""timeSlots"": [
+                    { ""start"": ""2023-07-26T10:30:00Z"", ""end"": ""2023-07-26T17:30:00Z"" }
+                    ]
+                }
+            ]
+        }");
+
+        // Call the algorithm with the availability response
+        var commonTimeSlots = FindCommonTimeSlots(availabilityResponse);
+
+        // Print the common time slots
+        Console.WriteLine("Common Time Slots:");
+        foreach (var timeSlot in commonTimeSlots)
+        {
+            Console.WriteLine($"Start: {timeSlot.Start}, End: {timeSlot.End}");
+        }
+    }
+
+    // Algorithm to find the common time slots from availability response
+    static List<TimeSlot> FindCommonTimeSlots(AvailabilityResponse availabilityResponse)
+    {
+        List<TimeSlot> commonTimeSlots = null;
+
+        foreach (var availability in availabilityResponse.Availabilities)
+        {
+            if (commonTimeSlots == null)
+            {
+                // Initialize the common time slots with the first availability
+                commonTimeSlots = new List<TimeSlot>(availability.TimeSlots);
+            }
+            else
+            {
+                // Find the intersection of the current availability's time slots with the common time slots
+                commonTimeSlots = commonTimeSlots.Intersect(availability.TimeSlots, new TimeSlotEqualityComparer()).ToList();
+            }
+        }
+
+        return commonTimeSlots;
+    }
+
+    // Custom equality comparer for TimeSlot class to handle intersection
+    public class TimeSlotEqualityComparer : IEqualityComparer<TimeSlot>
+    {
+        public bool Equals(TimeSlot x, TimeSlot y)
+        {
+            return x.Start == y.Start && x.End == y.End;
+        }
+
+        public int GetHashCode(TimeSlot obj)
+        {
+            return obj.Start.GetHashCode() ^ obj.End.GetHashCode();
+        }
+    }
+}
